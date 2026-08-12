@@ -1,0 +1,53 @@
+name: Scheduled Deal Scan
+
+# Manual trigger ONLY for now (Phase 4). No `schedule:` cron trigger yet --
+# see the guardrail note below. Enable the cron in Phase 5, once a real
+# marketplace provider exists.
+#
+# Why: providers/registry.py refuses to return a mock provider whenever
+# ENVIRONMENT=production (guardrail #2, OPERATIONAL_GUARDRAILS.md). Since
+# AMAZON_PROVIDER_ENABLED/NOON_PROVIDER_ENABLED are both false until Phase 5,
+# running this job with ENVIRONMENT=production today would raise
+# MockProviderInProductionError on every run -- by design, not a bug.
+# workflow_dispatch lets us prove the infrastructure (secrets, Neon
+# connectivity, guardrail behavior) works for real, without wasting
+# scheduled runs on a guaranteed, intentional failure.
+on:
+  workflow_dispatch: {}
+  # schedule:
+  #   - cron: "*/30 * * * *"   # <- uncomment in Phase 5. See ARCHITECTURE.md
+  #                              §13 for the Neon CU-hour math behind 30 min.
+
+concurrency:
+  group: scheduled-deal-scan
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production  # grants access to the production secrets below
+    env:
+      ENVIRONMENT: production
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+      DRY_RUN: "false"
+      AMAZON_PROVIDER_ENABLED: "false"
+      NOON_PROVIDER_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -e .
+
+      - name: Run scheduled scan
+        run: python -m app.scheduler.runner

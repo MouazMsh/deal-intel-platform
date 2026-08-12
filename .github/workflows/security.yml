@@ -1,0 +1,42 @@
+name: Weekly Security Scan
+
+on:
+  schedule:
+    # Every Monday 03:00 UTC. Unrelated to the deal-scan job (that's added
+    # in Phase 4 as scheduled-scan.yml) -- this is dependency/secret hygiene,
+    # not application logic.
+    - cron: "0 3 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: weekly-security-scan
+  cancel-in-progress: false
+
+jobs:
+  dependency-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: pip-audit
+        run: pip-audit
+
+      - name: Bandit
+        run: bandit -r app -ll
+
+      - name: gitleaks (full history scan)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

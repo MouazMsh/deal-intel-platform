@@ -1,0 +1,30 @@
+# Secrets — never committed
+.env
+*.env
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local databases
+*.db
+*.sqlite3
+
+# Virtual environments
+.venv/
+venv/
+
+# Editors/OS
+.vscode/
+.idea/
+.DS_Store
